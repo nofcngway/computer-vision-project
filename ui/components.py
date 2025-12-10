@@ -3,39 +3,89 @@ import tkinter as tk
 from tkinter import ttk
 from config import Config
 
-class ModernButton(tk.Button):
-    def __init__(self, master, **kwargs):
-        # Extract custom properties
+class ModernButton(tk.Label):
+    def __init__(self, master, command=None, **kwargs):
+        self.command = command
+        # Extract custom colors
         self.bg_color = kwargs.pop('bg', Config.COLORS['bg_secondary'])
         self.fg_color = kwargs.pop('fg', Config.COLORS['fg_primary'])
         self.hover_color = kwargs.pop('hover_bg', Config.COLORS['accent'])
         self.active_color = kwargs.pop('active_bg', Config.COLORS['accent_hover'])
         
+        # Clean up kwargs that Label might not support but Button did
+        kwargs.pop('activebackground', None)
+        kwargs.pop('activeforeground', None)
+        
+        # Internal state
+        self._state = kwargs.get('state', tk.NORMAL)
+        
+        # Determine initial style
+        initial_bg = self.bg_color
+        initial_fg = self.fg_color
+        initial_cursor = 'hand2'
+        
+        if self._state == tk.DISABLED:
+            initial_fg = Config.COLORS['fg_secondary']
+            initial_cursor = 'arrow'
+            # Keep bg as bg_secondary (transparent-ish look)
+        
+        # We manually handle state visuals, so we might want to consume 'state' from kwargs 
+        # to prevent Label from applying its own disabled stipple which looks bad on some OS
+        if 'state' in kwargs:
+            del kwargs['state']
+            
         super().__init__(
             master,
-            bg=self.bg_color,
-            fg=self.fg_color,
-            activebackground=self.active_color,
-            activeforeground='#FFFFFF',
+            bg=initial_bg,
+            fg=initial_fg,
             relief=tk.FLAT,
             borderwidth=0,
-            cursor='hand2',
-            pady=8,
-            padx=15,
+            cursor=initial_cursor,
+            pady=10,
+            padx=20,
             font=Config.FONTS['normal'],
             **kwargs
         )
         
+        self.bind('<Button-1>', self.on_click)
         self.bind('<Enter>', self.on_enter)
         self.bind('<Leave>', self.on_leave)
 
+    def on_click(self, e):
+        if self._state == tk.NORMAL and self.command:
+            self.command()
+
     def on_enter(self, e):
-        if self['state'] != tk.DISABLED:
-            self['bg'] = self.hover_color
+        if self._state == tk.NORMAL:
+            self.configure(bg=self.hover_color)
 
     def on_leave(self, e):
-        if self['state'] != tk.DISABLED:
-            self['bg'] = self.bg_color
+        if self._state == tk.NORMAL:
+            self.configure(bg=self.bg_color)
+
+    def config(self, **kwargs):
+        if 'state' in kwargs:
+            self._state = kwargs['state']
+            if self._state == tk.DISABLED:
+                self.configure(
+                    fg=Config.COLORS['fg_secondary'],
+                    cursor='arrow',
+                    bg=Config.COLORS['bg_secondary']
+                )
+            else:
+                self.configure(
+                    fg=self.fg_color,
+                    cursor='hand2',
+                    bg=self.bg_color
+                )
+            # Remove state from kwargs as Label handles it differently (greys out text)
+            # We handle visuals manually
+            del kwargs['state']
+            
+        super().config(**kwargs)
+
+    # Alias for consistency
+    configure = config
 
 class ResultCard(tk.Frame):
     def __init__(self, master, title, content, icon="•", **kwargs):
