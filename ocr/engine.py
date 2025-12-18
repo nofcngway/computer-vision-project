@@ -2,7 +2,6 @@
 import easyocr
 import threading
 from ocr.preprocessor import ImagePreprocessor
-
 from config import Config
 
 class OCREngine:

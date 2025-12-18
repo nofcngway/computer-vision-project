@@ -28,16 +28,27 @@ class ImagePreprocessor:
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(gray)
         
-        # 4. Применяем адаптивную бинаризацию
-        # Это помогает OCR лучше видеть текст
-        binary = cv2.adaptiveThreshold(
-            enhanced, 255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            11, 2
-        )
+        
+        # 4. Бинаризация (выбор метода)
+        # 'sauvola' - наш ручной алгоритм (лучше для текста с тенями)
+        # 'standard' - стандартный OpenCV (быстрее, но хуже качество)
+        method = 'sauvola' 
+        
+        if method == 'sauvola':
+            from ocr.manual_algorithms import ManualBinarization
+            # window_size=25, k=0.2 дают хорошие результаты для документов
+            binary = ManualBinarization.sauvola(enhanced, window_size=25, k=0.2)
+        else:
+            # Стандартный OpenCV подход
+            binary = cv2.adaptiveThreshold(
+                enhanced, 255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                11, 2
+            )
         
         # 5. Убираем шум
-        denoised = cv2.fastNlMeansDenoising(binary, h=10)
+        # Для Сауволы шум обычно меньше, но почистить полезно
+        denoised = cv2.fastNlMeansDenoising(binary, h=5) # h поменьше, чтобы не размыть буквы
         
         return denoised

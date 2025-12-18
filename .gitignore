@@ -16,3 +16,7 @@ Thumbs.db
 .idea/
 
 *.log
+
+images/
+comparison_results/
+compare_algorithms.py
