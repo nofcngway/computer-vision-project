@@ -1,17 +1,17 @@
-
 import easyocr
 import threading
 from ocr.preprocessor import ImagePreprocessor
 from config import Config
 
+
 class OCREngine:
-    def __init__(self, languages=['ru', 'en'], gpu=False):
+    def __init__(self, languages=["ru", "en"], gpu=False):
         self.languages = languages
         self.gpu = gpu
         self.reader = None
         self.is_loaded = False
         self.load_error = None
-        
+
         # Инициализация в отдельном потоке, чтобы не блокировать UI
         self._load_thread = threading.Thread(target=self._load_model, daemon=True)
         self._load_thread.start()
@@ -38,17 +38,19 @@ class OCREngine:
         try:
             # 1. OCR на оригинале
             result_original = self.reader.readtext(image_path, **Config.OCR_PARAMS)
-            
+
             # 2. OCR на предобработанном изображении
             preprocessed_img = ImagePreprocessor.process(image_path)
-            
+
             if preprocessed_img is not None:
-                result_preprocessed = self.reader.readtext(preprocessed_img, **Config.OCR_PARAMS)
+                result_preprocessed = self.reader.readtext(
+                    preprocessed_img, **Config.OCR_PARAMS
+                )
                 # Объединяем результаты
                 return self._merge_results(result_original, result_preprocessed)
             else:
                 return result_original
-                
+
         except Exception as e:
             raise Exception(f"OCR processing error: {e}")
 
@@ -59,27 +61,27 @@ class OCREngine:
         Тексты берутся лучшие по уверенности.
         """
         best_results = {}
-        
+
         # Сначала добавляем результаты от оригинала
-        for (bbox, text, prob) in result_original:
+        for bbox, text, prob in result_original:
             normalized = text.strip().lower()
             if not normalized:
                 continue
             best_results[normalized] = (bbox, text, prob)
-        
+
         # Добавляем тексты от предобработанного, если они лучше
-        for (bbox_prep, text, prob) in result_preprocessed:
+        for bbox_prep, text, prob in result_preprocessed:
             normalized = text.strip().lower()
             if not normalized:
                 continue
-            
+
             if normalized in best_results:
                 old_prob = best_results[normalized][2]
                 if prob > old_prob:
                     # Обновляем текст и prob, но оставляем bbox от оригинала
                     old_bbox = best_results[normalized][0]
                     best_results[normalized] = (old_bbox, text, prob)
-            # Если текста нет в оригинале, мы его НЕ добавляем, 
+            # Если текста нет в оригинале, мы его НЕ добавляем,
             # так как у нас нет правильного bbox для оригинала (масштабы могут отличаться)
-        
+
         return list(best_results.values())
